@@ -79,17 +79,20 @@
     }
     .modal.open{display:grid;}
     .sheetWrap{
-      position:relative;
-      width: min(900px, 92vw);
-      aspect-ratio: 1/2; /* 시트 이미지 비율에 맞춰 조절 가능 */
-    }
-    .sheetBg{
-      width:100%; height:100%;
-      object-fit: contain;
-      display:block;
-      user-select:none;
-      pointer-events:none;
-    }
+  position:relative;
+
+  width: 90vw;
+  max-width: 520px;   /* ← 여기 숫자 줄이면 더 작아짐 */
+  max-height: 90vh;
+
+  aspect-ratio: 1050 / 2100; /* 시트 비율(필요하면 바꿔줌) */
+}
+.sheetBg{
+  width:100%;
+  height:100%;
+  object-fit: contain;
+}
+
     .sheetOverlay{
       position:absolute; inset:0;
     }
