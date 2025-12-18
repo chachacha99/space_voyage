@@ -180,12 +180,13 @@
         <input class="sheetInput sheetName" id="f_name"
           style="left: 10%; top: 10%; width: 80%; height: 8%;" placeholder="NAME" />
 
-        <input class="sheetInput" id="f_str" style="left: 62%; top: 28%; width: 20%; height: 6%;" value="0" />
-        <input class="sheetInput" id="f_con" style="left: 62%; top: 38%; width: 20%; height: 6%;" value="0" />
-        <input class="sheetInput" id="f_int" style="left: 62%; top: 48%; width: 20%; height: 6%;" value="0" />
-        <input class="sheetInput" id="f_luk" style="left: 62%; top: 58%; width: 20%; height: 6%;" value="0" />
-        <input class="sheetInput" id="f_aff" style="left: 62%; top: 68%; width: 20%; height: 6%;" value="0" />
-        <input class="sheetInput" id="f_san" style="left: 62%; top: 78%; width: 20%; height: 6%;" value="0" />
+       <input class="sheetInput statValue" id="f_str" style="top:28%" />
+<input class="sheetInput statValue" id="f_con" style="top:38%" />
+<input class="sheetInput statValue" id="f_int" style="top:48%" />
+<input class="sheetInput statValue" id="f_luk" style="top:58%" />
+<input class="sheetInput statValue" id="f_aff" style="top:68%" />
+<input class="sheetInput statValue" id="f_san" style="top:78%" />
+
       </div>
     </div>
   </div>
@@ -211,8 +212,8 @@
 
   const state = {
     ship: '우주선 이름',
-    L: { name:'(왼쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
-    R: { name:'(오른쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 }
+    L: { name:'(A 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
+    R: { name:'(B 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 }
   };
 
   const $ = (id)=>document.getElementById(id);
