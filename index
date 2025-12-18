@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>2인 우주선 항해 시뮬레이터</title>
+  <style>
+    :root{
+      --bg:#2f3338;
+      --blue:#0b49ff;
+      --blue2:#0a2db0;
+      --line: rgba(255,255,255,.18);
+      --panel: rgba(0,0,0,.18);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.55);
+      --chip: rgba(255,255,255,.65);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; height:100vh; overflow:hidden;
+      font-family: ui-sans-serif, system-ui, Apple SD Gothic Neo, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(900px 650px at 70% 0%, rgba(11,73,255,.22), transparent 55%),
+                  radial-gradient(700px 520px at 20% 100%, rgba(11,73,255,.18), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    /* Layout */
+    .wrap{
+      height:100vh; display:grid;
+      grid-template-columns: 320px 1fr 320px;
+      gap: 22px;
+      padding: 26px;
+    }
+
+    /* Side columns (standing + name) */
+    .side{
+      display:flex; flex-direction:column; align-items:center; gap:18px;
+      position:relative;
+    }
+    .standing{
+      width:100%;
+      height: 520px;
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(11,73,255,.95), rgba(11,45,176,.95));
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+      position:relative;
+      overflow:hidden;
+    }
+    .standing img{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit: cover;
+      opacity: .92;
+    }
+    .standing .hint{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      font-size:12px; color: rgba(255,255,255,.75);
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.18);
+      padding:10px; border-radius:10px;
+      backdrop-filter: blur(8px);
+    }
+    .nameBtn{
+      font-weight:800;
+      letter-spacing: .08em;
+      font-size: 56px;
+      color: var(--blue);
+      text-decoration: underline;
+      text-underline-offset: 12px;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    /* Center column */
+    .center{
+      display:flex; flex-direction:column; align-items:center;
+      position:relative;
+    }
+    .title{
+      font-size: 64px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      color: var(--blue);
+      margin-top: 8px;
+      margin-bottom: 18px;
+      text-align:center;
+    }
+
+    .logBox{
+      width: min(760px, 100%);
+      background: rgba(0,0,0,.22);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 14px 18px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
+    .line{
+      background: rgba(255,255,255,.55);
+      color: rgba(0,0,0,.75);
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin: 10px 0;
+      text-align:center;
+      font-weight: 600;
+    }
+
+    .dayBar{
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 32px;
+      font-weight: 700;
+      display:flex;
+      align-items:center;
+      gap: 16px;
+      user-select:none;
+    }
+    .nextBtn{
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      display:grid; place-items:center;
+    }
+    .tri{
+      width:0; height:0;
+      border-top:10px solid transparent;
+      border-bottom:10px solid transparent;
+      border-left:16px solid rgba(255,255,255,.7);
+      margin-left: 4px;
+    }
+
+    /* Decorations (diagonal stripes + circles 느낌) */
+    .stripes{
+      position:absolute; left:-30px; top:120px;
+      width: 180px; height: 520px;
+      opacity:.65;
+      pointer-events:none;
+      filter: blur(.2px);
+    }
+    .stripe{
+      height: 16px; margin: 32px 0;
+      background: linear-gradient(90deg, rgba(11,73,255,.95), rgba(11,73,255,.0));
+      transform: rotate(-40deg);
+      box-shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    .circle{
+      position:absolute; right:-30px; top:-30px;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.15), rgba(11,73,255,.95) 55%);
+      opacity:.8;
+      pointer-events:none;
+    }
+    .circle2{
+      position:absolute; right:-80px; bottom:90px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.12), rgba(11,73,255,.95) 60%);
+      opacity:.8;
+      pointer-events:none;
+    }
+
+    /* Modal (Sheet) */
+    .modal{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 22px;
+      z-index: 50;
+    }
+    .modal.open{ display:flex; }
+    .sheet{
+      width: min(520px, 100%);
+      background: rgba(30,33,38,.98);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 25px 80px rgba(0,0,0,.55);
+      position:relative;
+    }
+    .sheet h3{
+      margin: 6px 0 16px;
+      text-align:center;
+      color: var(--blue);
+      font-size: 44px;
+      letter-spacing:.08em;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 120px;
+      gap: 10px 14px;
+      align-items:center;
+    }
+    .grid label{
+      color: rgba(255,255,255,.75);
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .grid input{
+      width:100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18);
+      color: rgba(255,255,255,.92);
+      font-size: 18px;
+      text-align:right;
+      outline:none;
+    }
+    .row1{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .row1 input{
+      text-align:left;
+      font-weight:700;
+    }
+    .actions{
+      display:flex; justify-content:space-between; gap:10px; margin-top: 16px;
+    }
+    .btn{
+      flex:1;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18);
+      color: rgba(255,255,255,.9);
+      cursor:pointer;
+      font-weight:800;
+    }
+    .btn.primary{
+      border-color: rgba(11,73,255,.55);
+      background: rgba(11,73,255,.18);
+    }
+    .closeX{
+      position:absolute; right:14px; top:14px;
+      width: 40px; height: 40px; border-radius: 12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      color: rgba(255,255,255,.8);
+      font-weight:900;
+    }
+    .tiny{
+      margin-top: 10px;
+      color: rgba(255,255,255,.55);
+      font-size: 12px;
+      line-height:1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- LEFT -->
+    <section class="side">
+      <div class="stripes">
+        <div class="stripe"></div><div class="stripe"></div><div class="stripe"></div><div class="stripe"></div>
+      </div>
+      <div class="standing" id="standL">
+        <img id="imgL" alt="" style="display:none"/>
+        <div class="hint">
+          왼쪽 스탠딩 이미지 선택:
+          <input id="fileL" type="file" accept="image/*" />
+        </div>
+      </div>
+      <div class="nameBtn" id="openL">NAME</div>
+    </section>
+
+    <!-- CENTER -->
+    <section class="center">
+      <div class="circle"></div>
+      <div class="circle2"></div>
+
+      <div class="title" id="mainTitle">Title or pair name</div>
+
+      <div class="logBox" aria-label="simulation log">
+        <div id="log"></div>
+      </div>
+
+      <div class="dayBar">
+        <span id="dayText">항해 0일째</span>
+        <div class="nextBtn" id="nextBtn" title="다음">
+          <div class="tri"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT -->
+    <section class="side">
+      <div class="standing" id="standR">
+        <img id="imgR" alt="" style="display:none"/>
+        <div class="hint">
+          오른쪽 스탠딩 이미지 선택:
+          <input id="fileR" type="file" accept="image/*" />
+        </div>
+      </div>
+      <div class="nameBtn" id="openR">NAME</div>
+    </section>
+  </div>
+
+  <!-- SHEET MODAL -->
+  <div class="modal" id="modal">
+    <div class="sheet">
+      <button class="closeX" id="closeModal">✕</button>
+      <h3 id="sheetTitle">NAME</h3>
+
+      <div class="row1">
+        <div>
+          <label style="display:block;margin-bottom:6px;color:rgba(255,255,255,.7);font-weight:800;">이름</label>
+          <input id="f_name" placeholder="이름 입력" />
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:6px;color:rgba(255,255,255,.7);font-weight:800;">우주선 이름</label>
+          <input id="f_ship" placeholder="예: 스파이럴호" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <label>근력</label><input id="f_str" type="number" min="0" max="99" value="0"/>
+        <label>체력</label><input id="f_con" type="number" min="0" max="99" value="0"/>
+        <label>지능</label><input id="f_int" type="number" min="0" max="99" value="0"/>
+        <label>행운</label><input id="f_luk" type="number" min="0" max="99" value="0"/>
+        <label>애정</label><input id="f_aff" type="number" min="0" max="99" value="0"/>
+        <label>이성</label><input id="f_san" type="number" min="0" max="99" value="0"/>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="cancel">취소</button>
+        <button class="btn primary" id="save">저장</button>
+      </div>
+      <div class="tiny">
+        • 애정은 “이 캐릭터가 상대에게 느끼는 애정(0~99)”<br/>
+        • 이성은 멘탈/냉정함(갈등 억제·패닉 억제)에 사용
+      </div>
+    </div>
+  </div>
+
+<script>
+  /** ---------- State ---------- **/
+  const MAX_LINES = 8;                 // 중앙 창에 보이는 문장 개수(차면 위부터 삭제)
+  const START_LINES = 3;               // 출발 3문장
+  let day = 0;
+  let launched = false;
+  let editingSide = 'L';               // 'L' or 'R'
+  const state = {
+    ship: '우주선',
+    title: 'Title or pair name',
+    L: { name:'(왼쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
+    R: { name:'(오른쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
+    flags: { lovers:false, rivals:false }
+  };
+
+  const $ = (id)=>document.getElementById(id);
+  const clamp = (n)=>Math.max(0, Math.min(99, Number.isFinite(n)?n:0));
+
+  /** ---------- Log ---------- **/
+  function pushLine(text){
+    const log = $('log');
+    const div = document.createElement('div');
+    div.className = 'line';
+    div.textContent = text;
+    log.appendChild(div);
+
+    while(log.children.length > MAX_LINES){
+      log.removeChild(log.firstElementChild);
+    }
+  }
+  function clearLog(){ $('log').innerHTML=''; }
+
+  function refreshDay(){
+    $('dayText').textContent = `항해 ${day}일째`;
+  }
+
+  /** ---------- Image loader ---------- **/
+  function bindFile(inputId, imgId){
+    $(inputId).addEventListener('change', (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      const img = $(imgId);
+      img.src = url;
+      img.style.display = 'block';
+    });
+  }
+  bindFile('fileL','imgL');
+  bindFile('fileR','imgR');
+
+  /** ---------- Modal (Sheet) ---------- **/
+  function openSheet(side){
+    editingSide = side;
+    const c = state[side];
+    $('sheetTitle').textContent = c.name || 'NAME';
+    $('f_name').value = c.name || '';
+    $('f_ship').value = state.ship || '';
+    $('f_str').value = c.str;
+    $('f_con').value = c.con;
+    $('f_int').value = c.int;
+    $('f_luk').value = c.luk;
+    $('f_aff').value = c.aff;
+    $('f_san').value = c.san;
+    $('modal').classList.add('open');
+  }
+  function closeSheet(){
+    $('modal').classList.remove('open');
+  }
+
+  $('openL').addEventListener('click', ()=>openSheet('L'));
+  $('openR').addEventListener('click', ()=>openSheet('R'));
+  $('closeModal').addEventListener('click', closeSheet);
+  $('cancel').addEventListener('click', closeSheet);
+  $('modal').addEventListener('click', (e)=>{
+    if(e.target === $('modal')) closeSheet();
+  });
+
+  $('save').addEventListener('click', ()=>{
+    const side = editingSide;
+    const c = state[side];
+
+    c.name = ($('f_name').value || '').trim() || c.name;
+    state.ship = ($('f_ship').value || '').trim() || state.ship;
+
+    c.str = clamp(parseInt($('f_str').value,10));
+    c.con = clamp(parseInt($('f_con').value,10));
+    c.int = clamp(parseInt($('f_int').value,10));
+    c.luk = clamp(parseInt($('f_luk').value,10));
+    c.aff = clamp(parseInt($('f_aff').value,10));
+    c.san = clamp(parseInt($('f_san').value,10));
+
+    // 타이틀 자동(원하면 바꿔도 됨)
+    state.title = `${state.L.name} × ${state.R.name}`;
+    $('mainTitle').textContent = state.title;
+
+    closeSheet();
+  });
+
+  /** ---------- Simulation rules ---------- **/
+  function avgLove(){
+    return (state.L.aff + state.R.aff)/2;
+  }
+  function loveHigh(){ return state.L.aff >= 70 && state.R.aff >= 70; }
+  function loveLow(){ return state.L.aff <= 25 && state.R.aff <= 25; }
+
+  function powerGap(){
+    // 근력 기반 우위 (양수면 L 우위)
+    return state.L.str - state.R.str;
+  }
+  function calmLevel(){
+    // 이성+지능이 높을수록 충돌 완화
+    return (state.L.san + state.R.san + state.L.int + state.R.int) / 4;
+  }
+  function luckCheck(){
+    // 행운 평균으로 “좋은 사건” 확률
+    const p = (state.L.luk + state.R.luk) / 198; // 0~1
+    return Math.random() < p;
+  }
+
+  function startSequenceIfNeeded(){
+    if(launched) return;
+
+    clearLog();
+    pushLine(`${state.L.name}님이 ${state.ship}에 탑승하였습니다.`);
+    pushLine(`${state.R.name}님이 ${state.ship}에 탑승하였습니다.`);
+    pushLine(`${state.ship}이 발사되었습니다.`);
+    launched = true;
+
+    day = 1;
+    refreshDay();
+  }
+
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  // 문장 템플릿용 변수
+  function ctx(){
+    const L = state.L.name, R = state.R.name, S = state.ship;
+    return {L,R,S};
+  }
+
+  /** 이벤트 풀 (아래 3)에서 더 많이 넣을 수 있음 */
+  const EVENTS = {
+    lovers: [
+      ({L,R})=>`두 사람의 관계가 연인으로 발전했습니다.`,
+      ({L,R})=>`${L}님이 ${R}님에게 조심스레 손을 내밉니다.`,
+      ({L,R})=>`${R}님이 ${L}님의 머뭇거림을 받아줍니다.`,
+      ({L,R})=>`둘은 같은 침묵을 공유하는 법을 배웠습니다.`,
+      ({L,R})=>`둘은 별빛을 보며 약속을 합니다.`
+    ],
+    fight: [
+      ({L,R})=>`${L}님과 ${R}님이 싸웁니다.`,
+      ({L,R})=>`사소한 말 한마디가 도화선이 되었습니다.`,
+      ({L,R})=>`좁은 통로에서 서로의 어깨가 부딪칩니다.`,
+      ({L,R})=>`기계음보다 큰 숨소리가 선실을 채웁니다.`
+    ],
+    winLose: [
+      ({L,R,win})=>`${win}님이 싸움에서 승리했습니다.`,
+      ({L,R})=>`결국 한 사람이 고개를 돌립니다.`,
+      ({L,R})=>`정적이 길게 늘어집니다.`
+    ],
+    neutral: [
+      ({S})=>`${S}의 엔진 소리가 일정한 박자로 울립니다.`,
+      ({S})=>`항해 기록이 자동으로 저장됩니다.`,
+      ({S})=>`소형 운석 파편이 방어막에 부딪혀 흩어집니다.`,
+      ({S})=>`신호가 약해졌다가 다시 돌아옵니다.`,
+      ({S})=>`재활용 수분 장치가 정기 점검을 알립니다.`,
+      ({S})=>`복도 조명이 잠깐 깜빡였다가 정상으로 돌아옵니다.`
+    ],
+    good: [
+      ({S})=>`${S}이 예상보다 빠르게 항로를 안정화했습니다.`,
+      ({S})=>`저장 식량에서 ‘좋은 날’ 배급이 발견됩니다.`,
+      ({S})=>`센서에 유용한 잔해가 포착됩니다.`,
+      ({L,R})=>`${L}님과 ${R}님이 협력해 작은 고장을 해결했습니다.`
+    ],
+    bad: [
+      ({S})=>`${S}의 산소 필터가 막히기 시작합니다.`,
+      ({S})=>`미세한 누출 경보가 한 번 울립니다.`,
+      ({S})=>`통신에 잡음이 늘어납니다.`,
+      ({S})=>`엔진실에서 정체 모를 소리가 들립니다.`
+    ],
+    romanceProgress: [
+      ({L,R})=>`${L}님이 ${R}님에게 담요를 건넵니다.`,
+      ({L,R})=>`${R}님이 ${L}님의 피로를 눈치챕니다.`,
+      ({L,R})=>`둘은 같은 컵으로 따뜻한 음료를 나눠 마십니다.`,
+      ({L,R})=>`둘은 서로의 취향을 메모해 둡니다.`
+    ]
+  };
+
+  function step(){
+    startSequenceIfNeeded();
+
+    // 1) 관계 상태 업데이트(연인)
+    if(!state.flags.lovers && loveHigh()){
+      state.flags.lovers = true;
+      pushLine(pick(EVENTS.lovers)(ctx()));
+      day++; refreshDay();
+      return;
+    }
+
+    const love = avgLove();
+    const calm = calmLevel();
+
+    // 2) 갈등 발생 조건: 애정 낮고(혹은 한쪽만 높고 다른쪽 낮고) + 이성 낮거나 스트레스 이벤트
+    const tension =
+      (love < 35 ? 1 : 0) +
+      (Math.abs(state.L.aff - state.R.aff) > 40 ? 1 : 0) +
+      (calm < 45 ? 1 : 0);
+
+    const conflictHappens = Math.random() < (0.18 + 0.10 * tension);
+
+    // 3) 사건 생성
+    if(state.flags.lovers){
+      // 연인 상태면 로맨스/사건 위주 + 큰 싸움 확률 낮춤
+      const roll = Math.random();
+      if(roll < 0.55){
+        pushLine(pick(EVENTS.romanceProgress)(ctx()));
+      } else if(roll < 0.78){
+        pushLine(pick(luckCheck()?EVENTS.good:EVENTS.neutral)(ctx()));
+      } else {
+        pushLine(pick(EVENTS.bad)(ctx()));
+      }
+    } else if(conflictHappens){
+      // 싸움 이벤트
+      pushLine(pick(EVENTS.fight)(ctx()));
+
+      // 승패: 근력 우위 + 행운 약간 반영
+      const gap = powerGap(); // +면 L 우위
+      const bias = (gap / 99) * 0.35 + ((state.L.luk - state.R.luk)/99)*0.15;
+      const Lwins = Math.random() < (0.5 + bias);
+      const winName = Lwins ? state.L.name : state.R.name;
+      pushLine(pick(EVENTS.winLose)({...ctx(), win: winName}));
+
+      // 관계 수치 변화(간단)
+      state.L.aff = clamp(state.L.aff - (Lwins ? 4 : 7));
+      state.R.aff = clamp(state.R.aff - (Lwins ? 7 : 4));
+    } else {
+      // 평시 이벤트: 좋음/나쁨/중립
+      const roll = Math.random();
+      if(roll < 0.22) pushLine(pick(EVENTS.bad)(ctx()));
+      else if(roll < 0.44) pushLine(pick(EVENTS.good)(ctx()));
+      else pushLine(pick(EVENTS.neutral)(ctx()));
+    }
+
+    day++;
+    refreshDay();
+  }
+
+  $('nextBtn').addEventListener('click', step);
+
+  // 초기 세팅
+  $('mainTitle').textContent = state.title;
+  refreshDay();
+  // 로그는 비워둔 상태에서, 첫 클릭 때 3문장 + day=1로 시작
+</script>
+</body>
+</html>
