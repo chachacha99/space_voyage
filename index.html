@@ -1,601 +1,368 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>2인 우주선 항해 시뮬레이터</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>space_voyage</title>
   <style>
+    /* ===== 원본 디자인 캔버스 크기(고정) ===== */
     :root{
-      --bg:#2f3338;
-      --blue:#0b49ff;
-      --blue2:#0a2db0;
-      --line: rgba(255,255,255,.18);
-      --panel: rgba(0,0,0,.18);
-      --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.55);
-      --chip: rgba(255,255,255,.65);
+      --W: 2100;
+      --H: 1050;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0; height:100vh; overflow:hidden;
-      font-family: ui-sans-serif, system-ui, Apple SD Gothic Neo, Segoe UI, Roboto, Helvetica, Arial;
-      background: radial-gradient(900px 650px at 70% 0%, rgba(11,73,255,.22), transparent 55%),
-                  radial-gradient(700px 520px at 20% 100%, rgba(11,73,255,.18), transparent 55%),
-                  var(--bg);
-      color: var(--text);
-    }
+    html,body{height:100%; margin:0; background:#111;}
+    body{display:grid; place-items:center; overflow:hidden;}
 
-    /* Layout */
-    .wrap{
-      height:100vh; display:grid;
-      grid-template-columns: 320px 1fr 320px;
-      gap: 22px;
-      padding: 26px;
+    /* ===== 브라우저에 맞게 스케일링되는 스테이지 ===== */
+    .viewport{
+      width: 100vw;
+      height: 100vh;
+      display:grid;
+      place-items:center;
     }
-
-    /* Side columns (standing + name) */
-    .side{
-      display:flex; flex-direction:column; align-items:center; gap:18px;
-      position:relative;
+    .stage{
+      position: relative;
+      width: calc(var(--W) * 1px);
+      height: calc(var(--H) * 1px);
+      transform-origin: top left;
+      /* JS가 scale 값을 넣어줌 */
     }
-    .standing{
-      width:100%;
-      height: 520px;
-      border-radius: 6px;
-      background: linear-gradient(180deg, rgba(11,73,255,.95), rgba(11,45,176,.95));
-      box-shadow: 0 20px 50px rgba(0,0,0,.35);
-      position:relative;
-      overflow:hidden;
-    }
-    .standing img{
+    .bg{
       position:absolute; inset:0;
       width:100%; height:100%;
-      object-fit: cover;
-      opacity: .92;
-    }
-    .standing .hint{
-      position:absolute; left:12px; right:12px; bottom:12px;
-      font-size:12px; color: rgba(255,255,255,.75);
-      background: rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.18);
-      padding:10px; border-radius:10px;
-      backdrop-filter: blur(8px);
-    }
-    .nameBtn{
-      font-weight:800;
-      letter-spacing: .08em;
-      font-size: 56px;
-      color: var(--blue);
-      text-decoration: underline;
-      text-underline-offset: 12px;
-      cursor:pointer;
+      object-fit: contain;
       user-select:none;
+      pointer-events:none; /* 배경은 클릭 막기 */
     }
 
-    /* Center column */
-    .center{
-      display:flex; flex-direction:column; align-items:center;
-      position:relative;
-    }
-    .title{
-      font-size: 64px;
-      font-weight: 900;
-      letter-spacing: .02em;
-      color: var(--blue);
-      margin-top: 8px;
-      margin-bottom: 18px;
-      text-align:center;
+    /* 오버레이: 여기 위에 클릭/입력 요소를 “정확한 픽셀 좌표”로 올림 */
+    .overlay{
+      position:absolute; inset:0;
     }
 
-    .logBox{
-      width: min(760px, 100%);
-      background: rgba(0,0,0,.22);
-      border:1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px 14px 18px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    /* ===== 클릭 영역(투명 버튼) 공통 ===== */
+    .hit{
+      position:absolute;
+      background: rgba(255,255,255,0.0); /* 개발 중엔 0.15로 올리면 위치 보기 쉬움 */
+      border: 0;
+      cursor: pointer;
+    }
+
+    /* ===== 중앙 로그 영역(텍스트 박스 안) ===== */
+    .log{
+      position:absolute;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      padding: 14px;
+      /* 배경은 이미 이미지에 있으니 투명 */
     }
     .line{
-      background: rgba(255,255,255,.55);
-      color: rgba(0,0,0,.75);
-      border-radius: 16px;
-      padding: 10px 14px;
-      margin: 10px 0;
-      text-align:center;
-      font-weight: 600;
-    }
-
-    .dayBar{
-      margin-top: 24px;
-      color: var(--muted);
-      font-size: 32px;
-      font-weight: 700;
+      height: 54px;              /* 이미지의 회색 라운드 박스 높이에 맞춰 조절 */
       display:flex;
       align-items:center;
-      gap: 16px;
-      user-select:none;
-    }
-    .nextBtn{
-      width: 44px; height: 44px;
-      border-radius: 12px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      display:grid; place-items:center;
-    }
-    .tri{
-      width:0; height:0;
-      border-top:10px solid transparent;
-      border-bottom:10px solid transparent;
-      border-left:16px solid rgba(255,255,255,.7);
-      margin-left: 4px;
+      justify-content:center;
+      font: 700 22px/1.2 system-ui, Apple SD Gothic Neo, sans-serif;
+      color: rgba(0,0,0,.75);    /* 이미지 박스가 밝으니 어두운 글자 */
+      background: rgba(255,255,255,.55); /* 이미지의 라운드 박스 느낌(원하면 투명으로) */
+      border-radius: 18px;
     }
 
-    /* Decorations (diagonal stripes + circles 느낌) */
-    .stripes{
-      position:absolute; left:-30px; top:120px;
-      width: 180px; height: 520px;
-      opacity:.65;
-      pointer-events:none;
-      filter: blur(.2px);
-    }
-    .stripe{
-      height: 16px; margin: 32px 0;
-      background: linear-gradient(90deg, rgba(11,73,255,.95), rgba(11,73,255,.0));
-      transform: rotate(-40deg);
-      box-shadow: 0 10px 25px rgba(0,0,0,.25);
-    }
-    .circle{
-      position:absolute; right:-30px; top:-30px;
-      width: 140px; height: 140px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.15), rgba(11,73,255,.95) 55%);
-      opacity:.8;
-      pointer-events:none;
-    }
-    .circle2{
-      position:absolute; right:-80px; bottom:90px;
-      width: 220px; height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.12), rgba(11,73,255,.95) 60%);
-      opacity:.8;
-      pointer-events:none;
-    }
-
-    /* Modal (Sheet) */
+    /* ===== 모달(시트) ===== */
     .modal{
       position:fixed; inset:0;
-      background: rgba(0,0,0,.55);
       display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 22px;
-      z-index: 50;
+      place-items:center;
+      background: rgba(0,0,0,.65);
+      z-index: 999;
     }
-    .modal.open{ display:flex; }
-    .sheet{
-      width: min(520px, 100%);
-      background: rgba(30,33,38,.98);
-      border:1px solid var(--line);
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 25px 80px rgba(0,0,0,.55);
+    .modal.open{display:grid;}
+    .sheetWrap{
       position:relative;
+      width: min(900px, 92vw);
+      aspect-ratio: 1/2; /* 시트 이미지 비율에 맞춰 조절 가능 */
     }
-    .sheet h3{
-      margin: 6px 0 16px;
-      text-align:center;
-      color: var(--blue);
-      font-size: 44px;
-      letter-spacing:.08em;
+    .sheetBg{
+      width:100%; height:100%;
+      object-fit: contain;
+      display:block;
+      user-select:none;
+      pointer-events:none;
     }
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 120px;
-      gap: 10px 14px;
-      align-items:center;
+    .sheetOverlay{
+      position:absolute; inset:0;
     }
-    .grid label{
-      color: rgba(255,255,255,.75);
-      font-size: 20px;
-      font-weight: 800;
-    }
-    .grid input{
-      width:100%;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.92);
-      font-size: 18px;
-      text-align:right;
+    .sheetInput{
+      position:absolute;
+      border: none;
       outline:none;
+      background: rgba(0,0,0,0);
+      color: rgba(11,73,255,.95);
+      font: 800 42px/1 system-ui, Apple SD Gothic Neo, sans-serif;
+      text-align:right;
     }
-    .row1{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
+    .sheetName{
+      text-align:center;
+      font-size: 52px;
     }
-    .row1 input{
-      text-align:left;
-      font-weight:700;
-    }
-    .actions{
-      display:flex; justify-content:space-between; gap:10px; margin-top: 16px;
-    }
-    .btn{
-      flex:1;
-      padding: 12px 14px;
+    .closeBtn{
+      position:absolute;
+      right: 2%;
+      top: 2%;
+      width: 56px;
+      height: 56px;
       border-radius: 14px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.18);
-      color: rgba(255,255,255,.9);
+      border:1px solid rgba(255,255,255,.25);
+      background: rgba(0,0,0,.25);
+      color:#fff;
       cursor:pointer;
-      font-weight:800;
-    }
-    .btn.primary{
-      border-color: rgba(11,73,255,.55);
-      background: rgba(11,73,255,.18);
-    }
-    .closeX{
-      position:absolute; right:14px; top:14px;
-      width: 40px; height: 40px; border-radius: 12px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.18);
-      cursor:pointer;
-      color: rgba(255,255,255,.8);
       font-weight:900;
     }
-    .tiny{
-      margin-top: 10px;
-      color: rgba(255,255,255,.55);
-      font-size: 12px;
-      line-height:1.5;
-    }
+
+    /* 개발 편의: F2 누르면 히트박스 보이게 */
+    body.debug .hit{ background: rgba(0,255,255,.15); outline: 1px solid rgba(0,255,255,.7); }
+    body.debug .log{ outline: 1px dashed rgba(255,255,0,.8); }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="viewport">
+    <div class="stage" id="stage">
+      <!-- ✅ 네가 만든 메인 이미지 그대로 -->
+      <img class="bg" src="main.png" alt="main ui" />
 
-    <!-- LEFT -->
-    <section class="side">
-      <div class="stripes">
-        <div class="stripe"></div><div class="stripe"></div><div class="stripe"></div><div class="stripe"></div>
+      <div class="overlay">
+        <!-- ====== (1) 왼쪽 NAME 클릭 영역 ====== -->
+        <button class="hit" id="hitNameL"
+          style="left: 330px; top: 880px; width: 520px; height: 120px;"></button>
+
+        <!-- ====== (2) 오른쪽 NAME 클릭 영역 ====== -->
+        <button class="hit" id="hitNameR"
+          style="left: 1250px; top: 880px; width: 520px; height: 120px;"></button>
+
+        <!-- ====== (3) 왼쪽 스탠딩 이미지 영역 클릭(파일 선택) ====== -->
+        <input class="hit" id="fileL" type="file" accept="image/*"
+          style="left: 120px; top: 220px; width: 420px; height: 620px; opacity:0;" />
+
+        <!-- ====== (4) 오른쪽 스탠딩 이미지 영역 클릭(파일 선택) ====== -->
+        <input class="hit" id="fileR" type="file" accept="image/*"
+          style="left: 1560px; top: 220px; width: 420px; height: 620px; opacity:0;" />
+
+        <!-- ====== (5) 스탠딩 이미지 실제 표시 레이어(이미지 위에 올림) ====== -->
+        <img id="standL" style="position:absolute; left:120px; top:220px; width:420px; height:620px; object-fit:cover; display:none;" />
+        <img id="standR" style="position:absolute; left:1560px; top:220px; width:420px; height:620px; object-fit:cover; display:none;" />
+
+        <!-- ====== (6) 중앙 로그 영역(문장 박스 들어갈 자리) ====== -->
+        <div class="log" id="log"
+          style="left: 720px; top: 250px; width: 660px; height: 520px;"></div>
+
+        <!-- ====== (7) ‘다음’ 삼각형 버튼 클릭 영역 ====== -->
+        <button class="hit" id="btnNext"
+          style="left: 1030px; top: 930px; width: 120px; height: 80px;"></button>
+
+        <!-- (선택) 항해 N일째 텍스트를 HTML로 따로 띄우고 싶다면 여기 -->
+        <!-- <div id="dayText" style="position:absolute; left:860px; top:920px; width:380px; text-align:center; color:#9aa3b2; font:700 34px system-ui;">항해 0일째</div> -->
       </div>
-      <div class="standing" id="standL">
-        <img id="imgL" alt="" style="display:none"/>
-        <div class="hint">
-          왼쪽 스탠딩 이미지 선택:
-          <input id="fileL" type="file" accept="image/*" />
-        </div>
-      </div>
-      <div class="nameBtn" id="openL">NAME</div>
-    </section>
-
-    <!-- CENTER -->
-    <section class="center">
-      <div class="circle"></div>
-      <div class="circle2"></div>
-
-      <div class="title" id="mainTitle">Title or pair name</div>
-
-      <div class="logBox" aria-label="simulation log">
-        <div id="log"></div>
-      </div>
-
-      <div class="dayBar">
-        <span id="dayText">항해 0일째</span>
-        <div class="nextBtn" id="nextBtn" title="다음">
-          <div class="tri"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT -->
-    <section class="side">
-      <div class="standing" id="standR">
-        <img id="imgR" alt="" style="display:none"/>
-        <div class="hint">
-          오른쪽 스탠딩 이미지 선택:
-          <input id="fileR" type="file" accept="image/*" />
-        </div>
-      </div>
-      <div class="nameBtn" id="openR">NAME</div>
-    </section>
+    </div>
   </div>
 
-  <!-- SHEET MODAL -->
+  <!-- ===== 시트 모달 ===== -->
   <div class="modal" id="modal">
-    <div class="sheet">
-      <button class="closeX" id="closeModal">✕</button>
-      <h3 id="sheetTitle">NAME</h3>
+    <div class="sheetWrap">
+      <img class="sheetBg" src="sheet.png" alt="sheet ui" />
+      <button class="closeBtn" id="close">✕</button>
 
-      <div class="row1">
-        <div>
-          <label style="display:block;margin-bottom:6px;color:rgba(255,255,255,.7);font-weight:800;">이름</label>
-          <input id="f_name" placeholder="이름 입력" />
-        </div>
-        <div>
-          <label style="display:block;margin-bottom:6px;color:rgba(255,255,255,.7);font-weight:800;">우주선 이름</label>
-          <input id="f_ship" placeholder="예: 스파이럴호" />
-        </div>
-      </div>
+      <div class="sheetOverlay" id="sheetOverlay">
+        <!-- 아래 좌표는 “예시”야. 네 시트 이미지에 맞춰 x/y/width/height만 바꾸면 끝 -->
+        <input class="sheetInput sheetName" id="f_name"
+          style="left: 10%; top: 10%; width: 80%; height: 8%;" placeholder="NAME" />
 
-      <div class="grid">
-        <label>근력</label><input id="f_str" type="number" min="0" max="99" value="0"/>
-        <label>체력</label><input id="f_con" type="number" min="0" max="99" value="0"/>
-        <label>지능</label><input id="f_int" type="number" min="0" max="99" value="0"/>
-        <label>행운</label><input id="f_luk" type="number" min="0" max="99" value="0"/>
-        <label>애정</label><input id="f_aff" type="number" min="0" max="99" value="0"/>
-        <label>이성</label><input id="f_san" type="number" min="0" max="99" value="0"/>
-      </div>
-
-      <div class="actions">
-        <button class="btn" id="cancel">취소</button>
-        <button class="btn primary" id="save">저장</button>
-      </div>
-      <div class="tiny">
-        • 애정은 “이 캐릭터가 상대에게 느끼는 애정(0~99)”<br/>
-        • 이성은 멘탈/냉정함(갈등 억제·패닉 억제)에 사용
+        <input class="sheetInput" id="f_str" style="left: 62%; top: 28%; width: 20%; height: 6%;" value="0" />
+        <input class="sheetInput" id="f_con" style="left: 62%; top: 38%; width: 20%; height: 6%;" value="0" />
+        <input class="sheetInput" id="f_int" style="left: 62%; top: 48%; width: 20%; height: 6%;" value="0" />
+        <input class="sheetInput" id="f_luk" style="left: 62%; top: 58%; width: 20%; height: 6%;" value="0" />
+        <input class="sheetInput" id="f_aff" style="left: 62%; top: 68%; width: 20%; height: 6%;" value="0" />
+        <input class="sheetInput" id="f_san" style="left: 62%; top: 78%; width: 20%; height: 6%;" value="0" />
       </div>
     </div>
   </div>
 
 <script>
-  /** ---------- State ---------- **/
-  const MAX_LINES = 8;                 // 중앙 창에 보이는 문장 개수(차면 위부터 삭제)
-  const START_LINES = 3;               // 출발 3문장
+  /* ====== 스케일 자동 계산(2100×1050을 화면에 맞춤) ====== */
+  const stage = document.getElementById('stage');
+  function rescale(){
+    const W = 2100, H = 1050;
+    const sx = window.innerWidth / W;
+    const sy = window.innerHeight / H;
+    const s = Math.min(sx, sy);
+    stage.style.transform = `scale(${s})`;
+  }
+  window.addEventListener('resize', rescale);
+  rescale();
+
+  /* ====== 상태 ====== */
+  const MAX_LINES = 8;
   let day = 0;
   let launched = false;
-  let editingSide = 'L';               // 'L' or 'R'
+  let editSide = 'L';
+
   const state = {
-    ship: '우주선',
-    title: 'Title or pair name',
+    ship: '우주선 이름',
     L: { name:'(왼쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
-    R: { name:'(오른쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 },
-    flags: { lovers:false, rivals:false }
+    R: { name:'(오른쪽 캐릭터 이름)', str:0, con:0, int:0, luk:0, aff:0, san:0 }
   };
 
   const $ = (id)=>document.getElementById(id);
-  const clamp = (n)=>Math.max(0, Math.min(99, Number.isFinite(n)?n:0));
+  const clamp99 = (v)=>Math.max(0, Math.min(99, parseInt(v||0,10) || 0));
 
-  /** ---------- Log ---------- **/
+  /* ====== 로그 ====== */
   function pushLine(text){
-    const log = $('log');
-    const div = document.createElement('div');
-    div.className = 'line';
-    div.textContent = text;
-    log.appendChild(div);
-
-    while(log.children.length > MAX_LINES){
-      log.removeChild(log.firstElementChild);
+    const el = document.createElement('div');
+    el.className = 'line';
+    el.textContent = text;
+    $('log').appendChild(el);
+    while($('log').children.length > MAX_LINES){
+      $('log').removeChild($('log').firstElementChild);
     }
   }
-  function clearLog(){ $('log').innerHTML=''; }
-
-  function refreshDay(){
-    $('dayText').textContent = `항해 ${day}일째`;
+  function startIfNeeded(){
+    if(launched) return;
+    $('log').innerHTML = '';
+    pushLine(`${state.L.name}님이 ${state.ship}에 탑승하였습니다.`);
+    pushLine(`${state.R.name}님이 ${state.ship}에 탑승하였습니다.`);
+    pushLine(`${state.ship}이 발사되었습니다.`);
+    launched = true;
+    day = 1;
   }
 
-  /** ---------- Image loader ---------- **/
-  function bindFile(inputId, imgId){
-    $(inputId).addEventListener('change', (e)=>{
-      const file = e.target.files?.[0];
-      if(!file) return;
-      const url = URL.createObjectURL(file);
-      const img = $(imgId);
-      img.src = url;
-      img.style.display = 'block';
-    });
-  }
-  bindFile('fileL','imgL');
-  bindFile('fileR','imgR');
+  /* ====== 간단 이벤트 ====== */
+  function avgLove(){ return (state.L.aff + state.R.aff)/2; }
+  function loveHigh(){ return state.L.aff >= 70 && state.R.aff >= 70; }
+  function loveLow(){ return state.L.aff <= 25 && state.R.aff <= 25; }
+  function powerGap(){ return state.L.str - state.R.str; }
+  function calm(){ return (state.L.san + state.R.san + state.L.int + state.R.int)/4; }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-  /** ---------- Modal (Sheet) ---------- **/
+  const E = {
+    lovers: [
+      () => `두 사람의 관계가 연인으로 발전했습니다.`,
+      () => `${state.L.name}님이 ${state.R.name}님에게 조심스레 손을 내밉니다.`,
+      () => `${state.R.name}님이 ${state.L.name}님의 침묵을 받아줍니다.`
+    ],
+    fight: [
+      () => `${state.L.name}님과 ${state.R.name}님이 싸웁니다.`,
+      () => `사소한 말 한마디가 도화선이 되었습니다.`
+    ],
+    neutral: [
+      () => `${state.ship}의 엔진 소리가 일정한 박자로 울립니다.`,
+      () => `소형 운석 파편이 방어막에 부딪혀 흩어집니다.`
+    ],
+    bad: [
+      () => `${state.ship}의 산소 필터가 막히기 시작합니다.`,
+      () => `통신에 잡음이 늘어납니다.`
+    ],
+    good: [
+      () => `${state.L.name}님과 ${state.R.name}님이 협력해 작은 고장을 해결했습니다.`,
+      () => `${state.ship}이 예상보다 빠르게 항로를 안정화했습니다.`
+    ]
+  };
+
+  function step(){
+    startIfNeeded();
+
+    // 연인 이벤트 (한 번만)
+    if(loveHigh()){
+      pushLine(pick(E.lovers)());
+      day++;
+      return;
+    }
+
+    const tension =
+      (avgLove()<35 ? 1:0) +
+      (Math.abs(state.L.aff - state.R.aff)>40 ? 1:0) +
+      (calm()<45 ? 1:0);
+
+    const conflict = Math.random() < (0.16 + 0.10*tension);
+
+    if(conflict){
+      pushLine(pick(E.fight)());
+      const gap = powerGap();
+      const bias = (gap/99)*0.35 + ((state.L.luk - state.R.luk)/99)*0.15;
+      const Lwins = Math.random() < (0.5 + bias);
+      pushLine(`${Lwins ? state.L.name : state.R.name}님이 싸움에서 승리했습니다.`);
+      state.L.aff = clamp99(state.L.aff - (Lwins ? 4 : 7));
+      state.R.aff = clamp99(state.R.aff - (Lwins ? 7 : 4));
+    }else{
+      const roll = Math.random();
+      if(roll < 0.22) pushLine(pick(E.bad)());
+      else if(roll < 0.44) pushLine(pick(E.good)());
+      else pushLine(pick(E.neutral)());
+    }
+    day++;
+  }
+
+  /* ====== 시트 모달 ====== */
+  const modal = $('modal');
   function openSheet(side){
-    editingSide = side;
+    editSide = side;
     const c = state[side];
-    $('sheetTitle').textContent = c.name || 'NAME';
-    $('f_name').value = c.name || '';
-    $('f_ship').value = state.ship || '';
+    $('f_name').value = c.name;
     $('f_str').value = c.str;
     $('f_con').value = c.con;
     $('f_int').value = c.int;
     $('f_luk').value = c.luk;
     $('f_aff').value = c.aff;
     $('f_san').value = c.san;
-    $('modal').classList.add('open');
+    modal.classList.add('open');
   }
-  function closeSheet(){
-    $('modal').classList.remove('open');
-  }
+  function closeSheet(){ modal.classList.remove('open'); }
 
-  $('openL').addEventListener('click', ()=>openSheet('L'));
-  $('openR').addEventListener('click', ()=>openSheet('R'));
-  $('closeModal').addEventListener('click', closeSheet);
-  $('cancel').addEventListener('click', closeSheet);
-  $('modal').addEventListener('click', (e)=>{
-    if(e.target === $('modal')) closeSheet();
-  });
+  $('hitNameL').addEventListener('click', ()=>openSheet('L'));
+  $('hitNameR').addEventListener('click', ()=>openSheet('R'));
+  $('close').addEventListener('click', closeSheet);
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) closeSheet(); });
 
-  $('save').addEventListener('click', ()=>{
-    const side = editingSide;
-    const c = state[side];
-
-    c.name = ($('f_name').value || '').trim() || c.name;
-    state.ship = ($('f_ship').value || '').trim() || state.ship;
-
-    c.str = clamp(parseInt($('f_str').value,10));
-    c.con = clamp(parseInt($('f_con').value,10));
-    c.int = clamp(parseInt($('f_int').value,10));
-    c.luk = clamp(parseInt($('f_luk').value,10));
-    c.aff = clamp(parseInt($('f_aff').value,10));
-    c.san = clamp(parseInt($('f_san').value,10));
-
-    // 타이틀 자동(원하면 바꿔도 됨)
-    state.title = `${state.L.name} × ${state.R.name}`;
-    $('mainTitle').textContent = state.title;
-
-    closeSheet();
-  });
-
-  /** ---------- Simulation rules ---------- **/
-  function avgLove(){
-    return (state.L.aff + state.R.aff)/2;
-  }
-  function loveHigh(){ return state.L.aff >= 70 && state.R.aff >= 70; }
-  function loveLow(){ return state.L.aff <= 25 && state.R.aff <= 25; }
-
-  function powerGap(){
-    // 근력 기반 우위 (양수면 L 우위)
-    return state.L.str - state.R.str;
-  }
-  function calmLevel(){
-    // 이성+지능이 높을수록 충돌 완화
-    return (state.L.san + state.R.san + state.L.int + state.R.int) / 4;
-  }
-  function luckCheck(){
-    // 행운 평균으로 “좋은 사건” 확률
-    const p = (state.L.luk + state.R.luk) / 198; // 0~1
-    return Math.random() < p;
-  }
-
-  function startSequenceIfNeeded(){
-    if(launched) return;
-
-    clearLog();
-    pushLine(`${state.L.name}님이 ${state.ship}에 탑승하였습니다.`);
-    pushLine(`${state.R.name}님이 ${state.ship}에 탑승하였습니다.`);
-    pushLine(`${state.ship}이 발사되었습니다.`);
-    launched = true;
-
-    day = 1;
-    refreshDay();
-  }
-
-  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-
-  // 문장 템플릿용 변수
-  function ctx(){
-    const L = state.L.name, R = state.R.name, S = state.ship;
-    return {L,R,S};
-  }
-
-  /** 이벤트 풀 (아래 3)에서 더 많이 넣을 수 있음 */
-  const EVENTS = {
-    lovers: [
-      ({L,R})=>`두 사람의 관계가 연인으로 발전했습니다.`,
-      ({L,R})=>`${L}님이 ${R}님에게 조심스레 손을 내밉니다.`,
-      ({L,R})=>`${R}님이 ${L}님의 머뭇거림을 받아줍니다.`,
-      ({L,R})=>`둘은 같은 침묵을 공유하는 법을 배웠습니다.`,
-      ({L,R})=>`둘은 별빛을 보며 약속을 합니다.`
-    ],
-    fight: [
-      ({L,R})=>`${L}님과 ${R}님이 싸웁니다.`,
-      ({L,R})=>`사소한 말 한마디가 도화선이 되었습니다.`,
-      ({L,R})=>`좁은 통로에서 서로의 어깨가 부딪칩니다.`,
-      ({L,R})=>`기계음보다 큰 숨소리가 선실을 채웁니다.`
-    ],
-    winLose: [
-      ({L,R,win})=>`${win}님이 싸움에서 승리했습니다.`,
-      ({L,R})=>`결국 한 사람이 고개를 돌립니다.`,
-      ({L,R})=>`정적이 길게 늘어집니다.`
-    ],
-    neutral: [
-      ({S})=>`${S}의 엔진 소리가 일정한 박자로 울립니다.`,
-      ({S})=>`항해 기록이 자동으로 저장됩니다.`,
-      ({S})=>`소형 운석 파편이 방어막에 부딪혀 흩어집니다.`,
-      ({S})=>`신호가 약해졌다가 다시 돌아옵니다.`,
-      ({S})=>`재활용 수분 장치가 정기 점검을 알립니다.`,
-      ({S})=>`복도 조명이 잠깐 깜빡였다가 정상으로 돌아옵니다.`
-    ],
-    good: [
-      ({S})=>`${S}이 예상보다 빠르게 항로를 안정화했습니다.`,
-      ({S})=>`저장 식량에서 ‘좋은 날’ 배급이 발견됩니다.`,
-      ({S})=>`센서에 유용한 잔해가 포착됩니다.`,
-      ({L,R})=>`${L}님과 ${R}님이 협력해 작은 고장을 해결했습니다.`
-    ],
-    bad: [
-      ({S})=>`${S}의 산소 필터가 막히기 시작합니다.`,
-      ({S})=>`미세한 누출 경보가 한 번 울립니다.`,
-      ({S})=>`통신에 잡음이 늘어납니다.`,
-      ({S})=>`엔진실에서 정체 모를 소리가 들립니다.`
-    ],
-    romanceProgress: [
-      ({L,R})=>`${L}님이 ${R}님에게 담요를 건넵니다.`,
-      ({L,R})=>`${R}님이 ${L}님의 피로를 눈치챕니다.`,
-      ({L,R})=>`둘은 같은 컵으로 따뜻한 음료를 나눠 마십니다.`,
-      ({L,R})=>`둘은 서로의 취향을 메모해 둡니다.`
-    ]
-  };
-
-  function step(){
-    startSequenceIfNeeded();
-
-    // 1) 관계 상태 업데이트(연인)
-    if(!state.flags.lovers && loveHigh()){
-      state.flags.lovers = true;
-      pushLine(pick(EVENTS.lovers)(ctx()));
-      day++; refreshDay();
-      return;
+  // 입력값 저장: blur 때 반영(원하면 저장 버튼으로 바꿔도 됨)
+  function bindSheet(){
+    function save(){
+      const c = state[editSide];
+      c.name = ($('f_name').value || '').trim() || c.name;
+      c.str = clamp99($('f_str').value);
+      c.con = clamp99($('f_con').value);
+      c.int = clamp99($('f_int').value);
+      c.luk = clamp99($('f_luk').value);
+      c.aff = clamp99($('f_aff').value);
+      c.san = clamp99($('f_san').value);
     }
-
-    const love = avgLove();
-    const calm = calmLevel();
-
-    // 2) 갈등 발생 조건: 애정 낮고(혹은 한쪽만 높고 다른쪽 낮고) + 이성 낮거나 스트레스 이벤트
-    const tension =
-      (love < 35 ? 1 : 0) +
-      (Math.abs(state.L.aff - state.R.aff) > 40 ? 1 : 0) +
-      (calm < 45 ? 1 : 0);
-
-    const conflictHappens = Math.random() < (0.18 + 0.10 * tension);
-
-    // 3) 사건 생성
-    if(state.flags.lovers){
-      // 연인 상태면 로맨스/사건 위주 + 큰 싸움 확률 낮춤
-      const roll = Math.random();
-      if(roll < 0.55){
-        pushLine(pick(EVENTS.romanceProgress)(ctx()));
-      } else if(roll < 0.78){
-        pushLine(pick(luckCheck()?EVENTS.good:EVENTS.neutral)(ctx()));
-      } else {
-        pushLine(pick(EVENTS.bad)(ctx()));
-      }
-    } else if(conflictHappens){
-      // 싸움 이벤트
-      pushLine(pick(EVENTS.fight)(ctx()));
-
-      // 승패: 근력 우위 + 행운 약간 반영
-      const gap = powerGap(); // +면 L 우위
-      const bias = (gap / 99) * 0.35 + ((state.L.luk - state.R.luk)/99)*0.15;
-      const Lwins = Math.random() < (0.5 + bias);
-      const winName = Lwins ? state.L.name : state.R.name;
-      pushLine(pick(EVENTS.winLose)({...ctx(), win: winName}));
-
-      // 관계 수치 변화(간단)
-      state.L.aff = clamp(state.L.aff - (Lwins ? 4 : 7));
-      state.R.aff = clamp(state.R.aff - (Lwins ? 7 : 4));
-    } else {
-      // 평시 이벤트: 좋음/나쁨/중립
-      const roll = Math.random();
-      if(roll < 0.22) pushLine(pick(EVENTS.bad)(ctx()));
-      else if(roll < 0.44) pushLine(pick(EVENTS.good)(ctx()));
-      else pushLine(pick(EVENTS.neutral)(ctx()));
-    }
-
-    day++;
-    refreshDay();
+    ['f_name','f_str','f_con','f_int','f_luk','f_aff','f_san'].forEach(id=>{
+      $(id).addEventListener('change', save);
+      $(id).addEventListener('blur', save);
+    });
   }
+  bindSheet();
 
-  $('nextBtn').addEventListener('click', step);
+  $('btnNext').addEventListener('click', step);
 
-  // 초기 세팅
-  $('mainTitle').textContent = state.title;
-  refreshDay();
-  // 로그는 비워둔 상태에서, 첫 클릭 때 3문장 + day=1로 시작
+  /* ====== 스탠딩 이미지 로컬 선택 ====== */
+  function bindFile(fileId, imgId){
+    $(fileId).addEventListener('change', (e)=>{
+      const f = e.target.files?.[0];
+      if(!f) return;
+      const url = URL.createObjectURL(f);
+      const img = $(imgId);
+      img.src = url;
+      img.style.display = 'block';
+    });
+  }
+  bindFile('fileL','standL');
+  bindFile('fileR','standR');
+
+  /* ====== 디버그: F2로 히트박스 표시 ====== */
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'F2'){
+      document.body.classList.toggle('debug');
+    }
+  });
 </script>
 </body>
 </html>
