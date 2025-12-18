@@ -6,287 +6,290 @@
 <title>space_voyage</title>
 
 <style>
-/* ===== 기본 ===== */
-html,body{
-  margin:0; height:100%;
-  background:#111;
-}
-body{
-  display:grid;
-  place-items:center;
-  overflow:hidden;
-  font-family: system-ui, Apple SD Gothic Neo, sans-serif;
-}
+  html,body{margin:0;height:100%;background:#111;overflow:hidden;}
+  body{font-family:system-ui,Apple SD Gothic Neo,sans-serif;}
 
-/* ===== 메인 스테이지 ===== */
-.viewport{
-  width:100vw;
-  height:100vh;
-  display:grid;
-  place-items:center;
-}
-.stage{
-  position:relative;
-  transform-origin: top left;
-}
-.bg{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  user-select:none;
-  pointer-events:none;
-}
-.overlay{
-  position:absolute;
-  inset:0;
-}
+  /* ===== 메인 스테이지: 화면 정중앙 고정 ===== */
+  .stage{
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform-origin: top left; /* translate(-50%,-50%)가 transform 앞에 들어갈 거라 중요 */
+  }
+  .bg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    user-select:none; pointer-events:none;
+  }
+  .overlay{position:absolute; inset:0;}
+  .hit{
+    position:absolute;
+    border:0;
+    background:rgba(255,255,255,0);
+    cursor:pointer;
+  }
 
-/* 클릭 영역 */
-.hit{
-  position:absolute;
-  background:rgba(255,255,255,0);
-  border:0;
-  cursor:pointer;
-}
+  /* ===== 로그 ===== */
+  .log{
+    position:absolute;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding:12px;
+  }
+  .line{
+    height:50px; /* 네가 준 값 */
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    font-weight:700;
+    color:rgba(0,0,0,.75);
+    background:rgba(255,255,255,.55);
+    border-radius:16px;
+  }
 
-/* ===== 로그 ===== */
-.log{
-  position:absolute;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  padding:12px;
-}
-.line{
-  height:50px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:20px;
-  font-weight:700;
-  color:rgba(0,0,0,.75);
-  background:rgba(255,255,255,.55);
-  border-radius:16px;
-}
+  /* ===== 시트 모달 ===== */
+  .modal{
+    position:fixed; inset:0;
+    display:none;
+    background:rgba(0,0,0,.65);
+    z-index:999;
+  }
+  .modal.open{display:block;}
 
-/* ===== 시트 모달 ===== */
-.modal{
-  position:fixed;
-  inset:0;
-  display:none;
-  place-items:center;
-  background:rgba(0,0,0,.65);
-  z-index:999;
-}
-.modal.open{ display:grid; }
+  /* 시트도 같은 방식: 화면 정중앙 고정 */
+  .sheetStage{
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform-origin: top left;
+  }
+  .sheetBg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    user-select:none; pointer-events:none;
+  }
+  .sheetInput{
+    position:absolute;
+    border:none; outline:none;
+    background:transparent;
+    color:#0b49ff;
+    font-weight:800;
+    font-size:64px;
+    text-align:right;
+  }
+  .sheetName{ text-align:center; }
 
-.sheetViewport{
-  width:92vw;
-  height:92vh;
-  display:grid;
-  place-items:center;
-}
-.sheetStage{
-  position:relative;
-  transform-origin: top left;
-}
-.sheetBg{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  user-select:none;
-  pointer-events:none;
-}
-.sheetInput{
-  position:absolute;
-  border:none;
-  outline:none;
-  background:transparent;
-  color:#0b49ff;
-  font-weight:800;
-  font-size:64px;
-  text-align:right;
-}
-.sheetName{
-  text-align:center;
-}
-
-/* 디버그(F2) */
-body.debug .hit{
-  background:rgba(0,255,255,.2);
-  outline:1px solid cyan;
-}
+  /* 디버그(F2) */
+  body.debug .hit{background:rgba(0,255,255,.22);outline:1px solid cyan;}
+  body.debug .log{outline:1px dashed rgba(255,255,0,.8);}
 </style>
 </head>
 
 <body>
 
 <!-- ===== 메인 ===== -->
-<div class="viewport">
-  <div class="stage" id="stage">
-    <img id="mainBg" class="bg" src="main.png">
+<div class="stage" id="stage">
+  <img id="mainBg" class="bg" src="main.png" alt="main">
 
-    <div class="overlay">
+  <div class="overlay">
+    <!-- 왼쪽 스탠딩 -->
+    <input class="hit" id="fileL" type="file" accept="image/*"
+      style="left:165px;top:260px;width:400px;height:800px;opacity:0">
+    <img id="standL"
+      style="position:absolute;left:165px;top:260px;width:400px;height:800px;object-fit:cover;display:none">
 
-      <!-- 왼쪽 스탠딩 -->
-      <input class="hit" id="fileL" type="file" accept="image/*"
-        style="left:165px;top:260px;width:400px;height:800px;opacity:0">
-      <img id="standL"
-        style="position:absolute;left:165px;top:260px;width:400px;height:800px;object-fit:cover;display:none">
+    <!-- 오른쪽 스탠딩 -->
+    <input class="hit" id="fileR" type="file" accept="image/*"
+      style="left:1535px;top:260px;width:400px;height:800px;opacity:0">
+    <img id="standR"
+      style="position:absolute;left:1535px;top:260px;width:400px;height:800px;object-fit:cover;display:none">
 
-      <!-- 오른쪽 스탠딩 -->
-      <input class="hit" id="fileR" type="file" accept="image/*"
-        style="left:1535px;top:260px;width:400px;height:800px;opacity:0">
-      <img id="standR"
-        style="position:absolute;left:1535px;top:260px;width:400px;height:800px;object-fit:cover;display:none">
+    <!-- 이름 클릭 -->
+    <button class="hit" id="nameL"
+      style="left:255px;top:1079px;width:221px;height:92px"></button>
+    <button class="hit" id="nameR"
+      style="left:1625px;top:1079px;width:221px;height:92px"></button>
 
-      <!-- 이름 클릭 -->
-      <button class="hit" id="nameL"
-        style="left:255px;top:1079px;width:221px;height:92px"></button>
-      <button class="hit" id="nameR"
-        style="left:1625px;top:1079px;width:221px;height:92px"></button>
+    <!-- 중앙 로그 -->
+    <div class="log" id="log"
+      style="left:640px;top:260px;width:820px;height:800px"></div>
 
-      <!-- 로그 -->
-      <div class="log" id="log"
-        style="left:640px;top:260px;width:820px;height:800px"></div>
-
-      <!-- 항해 일수 -->
-      <div id="dayText"
-        style="position:absolute;left:929px;top:1152px;width:242px;height:36px;
-               display:flex;align-items:center;justify-content:center;
-               color:rgba(255,255,255,.55);font-size:24px;font-weight:700">
-        항해 0일째
-      </div>
-
-      <!-- 다음 버튼 -->
-      <button class="hit" id="next"
-        style="left:1194px;top:1152px;width:36px;height:36px"></button>
-
+    <!-- 항해 N일째 텍스트 (네 영역 그대로) -->
+    <div id="dayText"
+      style="position:absolute;left:929px;top:1152px;width:242px;height:36px;
+             display:flex;align-items:center;justify-content:center;
+             color:rgba(255,255,255,.55);font-size:24px;font-weight:700">
+      항해 0일째
     </div>
+
+    <!-- 다음 진행 -->
+    <button class="hit" id="next"
+      style="left:1194px;top:1152px;width:36px;height:36px"></button>
   </div>
 </div>
 
 <!-- ===== 시트 ===== -->
 <div class="modal" id="modal">
-  <div class="sheetViewport">
-    <div class="sheetStage" id="sheetStage">
-      <img id="sheetBg" class="sheetBg" src="sheet.png">
+  <div class="sheetStage" id="sheetStage">
+    <img id="sheetBg" class="sheetBg" src="sheet.png" alt="sheet">
 
-      <!-- 닫기 -->
-      <button class="hit" id="close"
-        style="left:930px;top:55px;width:70px;height:70px"></button>
+    <!-- 닫기 -->
+    <button class="hit" id="close"
+      style="left:930px;top:55px;width:70px;height:70px"></button>
 
-      <!-- 이름 -->
-      <input class="sheetInput sheetName" id="f_name"
-        style="left:411px;top:79px;width:229px;height:95px">
+    <!-- 캐릭터 이름 -->
+    <input class="sheetInput sheetName" id="f_name"
+      style="left:411px;top:79px;width:229px;height:95px">
 
-      <!-- 능력치 -->
-      <input class="sheetInput" id="f_str" style="left:654px;top:275px;width:121px;height:84px" value="0">
-      <input class="sheetInput" id="f_con" style="left:654px;top:419px;width:121px;height:84px" value="0">
-      <input class="sheetInput" id="f_int" style="left:654px;top:563px;width:121px;height:84px" value="0">
-      <input class="sheetInput" id="f_luk" style="left:654px;top:707px;width:121px;height:84px" value="0">
-      <input class="sheetInput" id="f_aff" style="left:654px;top:851px;width:121px;height:84px" value="0">
-      <input class="sheetInput" id="f_san" style="left:654px;top:995px;width:121px;height:84px" value="0">
-    </div>
+    <!-- 능력치 숫자 (좌표 그대로) -->
+    <input class="sheetInput" id="f_str" style="left:654px;top:275px;width:121px;height:84px" value="0">
+    <input class="sheetInput" id="f_con" style="left:654px;top:419px;width:121px;height:84px" value="0">
+    <input class="sheetInput" id="f_int" style="left:654px;top:563px;width:121px;height:84px" value="0">
+    <input class="sheetInput" id="f_luk" style="left:654px;top:707px;width:121px;height:84px" value="0">
+    <input class="sheetInput" id="f_aff" style="left:654px;top:851px;width:121px;height:84px" value="0">
+    <input class="sheetInput" id="f_san" style="left:654px;top:995px;width:121px;height:84px" value="0">
   </div>
 </div>
 
 <script>
-/* ===== 상태 ===== */
-let day = 0;
-let launched = false;
-let editing = 'L';
+  const $ = (id)=>document.getElementById(id);
 
-const state = {
-  ship:'우주선',
-  L:{name:'왼쪽 캐릭터',aff:0,str:0},
-  R:{name:'오른쪽 캐릭터',aff:0,str:0}
-};
+  let day = 0;
+  let launched = false;
+  let editing = 'L';
 
-const $ = id=>document.getElementById(id);
+  const state = {
+    ship: '우주선',
+    L: { name:'왼쪽 캐릭터', str:0, con:0, int:0, luk:0, aff:0, san:0 },
+    R: { name:'오른쪽 캐릭터', str:0, con:0, int:0, luk:0, aff:0, san:0 }
+  };
 
-/* ===== 스케일 ===== */
-function fit(el,img){
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
-  el.style.width = w+'px';
-  el.style.height = h+'px';
-  const s = Math.min(innerWidth/w, innerHeight/h);
-  el.style.transform = `scale(${s})`;
-}
-$('mainBg').onload = ()=>fit($('stage'),$('mainBg'));
-$('sheetBg').onload = ()=>{
-  const img=$('sheetBg'),st=$('sheetStage');
-  const s=Math.min(
-    $('sheetViewport').clientWidth/img.naturalWidth,
-    $('sheetViewport').clientHeight/img.naturalHeight
-  );
-  st.style.width=img.naturalWidth+'px';
-  st.style.height=img.naturalHeight+'px';
-  st.style.transform=`scale(${s})`;
-};
-addEventListener('resize',()=>{
-  if(mainBg.naturalWidth)fit(stage,mainBg);
-  if(sheetBg.naturalWidth)sheetBg.onload();
-});
+  function fitCenterScale(el, img, padding=0.98){
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if(!w || !h) return;
 
-/* ===== 로그 ===== */
-function push(t){
-  const d=document.createElement('div');
-  d.className='line';
-  d.textContent=t;
-  log.appendChild(d);
-  while(log.children.length>15)log.firstChild.remove();
-}
-function step(){
-  if(!launched){
-    log.innerHTML='';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+
+    const sx = (window.innerWidth / w) * padding;
+    const sy = (window.innerHeight / h) * padding;
+    const s = Math.min(sx, sy);
+
+    // ⭐ 핵심: translate(-50%,-50%)로 "보이는 것"을 진짜 중앙에 고정
+    el.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
+
+  // 메인/시트 이미지 로드 후 스케일
+  const mainBg = $('mainBg');
+  const sheetBg = $('sheetBg');
+  const stage = $('stage');
+  const sheetStage = $('sheetStage');
+
+  mainBg.addEventListener('load', ()=>fitCenterScale(stage, mainBg, 0.98));
+  sheetBg.addEventListener('load', ()=>fitCenterScale(sheetStage, sheetBg, 0.92));
+
+  window.addEventListener('resize', ()=>{
+    fitCenterScale(stage, mainBg, 0.98);
+    if($('modal').classList.contains('open')) fitCenterScale(sheetStage, sheetBg, 0.92);
+  });
+
+  /* ===== 로그 ===== */
+  function push(text){
+    const el = document.createElement('div');
+    el.className = 'line';
+    el.textContent = text;
+    $('log').appendChild(el);
+    while($('log').children.length > 15){
+      $('log').removeChild($('log').firstElementChild);
+    }
+  }
+
+  function startIfNeeded(){
+    if(launched) return;
+    $('log').innerHTML = '';
     push(`${state.L.name}님이 ${state.ship}에 탑승하였습니다.`);
     push(`${state.R.name}님이 ${state.ship}에 탑승하였습니다.`);
     push(`${state.ship}이 발사되었습니다.`);
-    launched=true;
-    day=1;
-  }else{
-    push(`${state.ship}의 항해가 계속됩니다.`);
+    launched = true;
+    day = 1;
+  }
+
+  function step(){
+    startIfNeeded();
+    if(launched && day > 1){
+      push(`${state.ship}의 항해가 계속됩니다.`);
+    }
+    $('dayText').textContent = `항해 ${day}일째`;
     day++;
   }
-  dayText.textContent=`항해 ${day}일째`;
-}
 
-/* ===== 이벤트 ===== */
-next.onclick=step;
+  $('next').addEventListener('click', step);
 
-/* ===== 시트 ===== */
-function openSheet(side){
-  editing=side;
-  modal.classList.add('open');
-  f_name.value=state[side].name;
-}
-nameL.onclick=()=>openSheet('L');
-nameR.onclick=()=>openSheet('R');
-close.onclick=()=>modal.classList.remove('open');
+  /* ===== 시트 모달 ===== */
+  function openSheet(side){
+    editing = side;
+    $('modal').classList.add('open');
+    fitCenterScale(sheetStage, sheetBg, 0.92);
 
-f_name.onchange=()=>state[editing].name=f_name.value;
+    const c = state[side];
+    $('f_name').value = c.name;
+    $('f_str').value = c.str;
+    $('f_con').value = c.con;
+    $('f_int').value = c.int;
+    $('f_luk').value = c.luk;
+    $('f_aff').value = c.aff;
+    $('f_san').value = c.san;
+  }
+  function closeSheet(){
+    $('modal').classList.remove('open');
+  }
 
-/* ===== 스탠딩 ===== */
-function bindFile(input,img){
-  input.onchange=e=>{
-    const f=e.target.files[0];
-    if(!f)return;
-    img.src=URL.createObjectURL(f);
-    img.style.display='block';
-  };
-}
-bindFile(fileL,standL);
-bindFile(fileR,standR);
+  $('nameL').addEventListener('click', ()=>openSheet('L'));
+  $('nameR').addEventListener('click', ()=>openSheet('R'));
+  $('close').addEventListener('click', closeSheet);
 
-/* 디버그 */
-addEventListener('keydown',e=>{
-  if(e.key==='F2')document.body.classList.toggle('debug');
-});
+  $('modal').addEventListener('click', (e)=>{
+    if(e.target === $('modal')) closeSheet();
+  });
+
+  const clamp99 = (v)=>Math.max(0, Math.min(99, parseInt(v||0,10) || 0));
+  function saveSheet(){
+    const c = state[editing];
+    c.name = ($('f_name').value || '').trim() || c.name;
+    c.str = clamp99($('f_str').value);
+    c.con = clamp99($('f_con').value);
+    c.int = clamp99($('f_int').value);
+    c.luk = clamp99($('f_luk').value);
+    c.aff = clamp99($('f_aff').value);
+    c.san = clamp99($('f_san').value);
+  }
+  ['f_name','f_str','f_con','f_int','f_luk','f_aff','f_san'].forEach(id=>{
+    $(id).addEventListener('change', saveSheet);
+    $(id).addEventListener('blur', saveSheet);
+  });
+
+  /* ===== 스탠딩 업로드 ===== */
+  function bindFile(inputId, imgId){
+    $(inputId).addEventListener('change', (e)=>{
+      const f = e.target.files?.[0];
+      if(!f) return;
+      const url = URL.createObjectURL(f);
+      const img = $(imgId);
+      img.src = url;
+      img.style.display = 'block';
+    });
+  }
+  bindFile('fileL','standL');
+  bindFile('fileR','standR');
+
+  /* 디버그 */
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'F2') document.body.classList.toggle('debug');
+  });
 </script>
 
 </body>
